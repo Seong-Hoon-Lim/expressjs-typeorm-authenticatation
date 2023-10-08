@@ -1,5 +1,10 @@
-/node_modules/
-/.idea/
+.idea/
+.vscode/
+node_modules/
+build/
+tmp/
+temp/
+data/
 
 # Created by https://www.toptal.com/developers/gitignore/api/windows,macos,linux,node,webstorm,git
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows,macos,linux,node,webstorm,git
