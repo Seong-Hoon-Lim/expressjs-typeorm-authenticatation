@@ -5,9 +5,9 @@ import { User } from "./entity/User"
 export const AppDataSource = new DataSource({
     type: "postgres",
     host: "localhost",
-    port: 5432,
-    username: "hooney",
-    password: "hooney1108",
+    port: 5433,
+    username: "postgres",
+    password: "password",
     database: "typeorm-auth",
     synchronize: true,
     logging: false,
