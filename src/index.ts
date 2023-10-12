@@ -1,11 +1,11 @@
+import dotenv from 'dotenv';
 import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
 import {AppDataSource} from "./data-source";
 import {User} from "./entity/User";
 import {DataSource} from "typeorm";
 
-const PORT: number = 4000;
-
+dotenv.config();
 const app: Express = express();
 
 app.use(express.json());
@@ -20,7 +20,7 @@ AppDataSource
         console.error('Error during Data Source initialization', err);
     })
 
-app.listen(PORT, (): void => {
-    console.log(`Server Running at http://localhost:${PORT}`);
+app.listen(process.env.PORT, (): void => {
+    console.log(`Server Running at http://localhost:${process.env.PORT}`);
 });
 
