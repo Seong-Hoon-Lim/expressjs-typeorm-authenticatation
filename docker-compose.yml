@@ -7,8 +7,8 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "password"
-      POSTGRES_DB: "typeorm-auth"
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DATABASE}
     volumes:
       - ./data:/var/lib/postgresql/data
