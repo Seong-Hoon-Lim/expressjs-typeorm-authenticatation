@@ -70,12 +70,12 @@ app.get('/signin', (req: Request, res: Response) => {
 //로그인 절차 로직(JWT 발급 및 유효성 검증과 인증 성공 시 로그인 성공)
 let refreshTokens: string[] = []; //나중에 refreshToken 은 DB 에 저장해줘야 됨
 app.post('/auth/signin', async (req: Request, res: Response) => {
-    const { email } = req.body;
+    const { email, password } = req.body;
     try {
         const userRepository = AppDataSource.getRepository(User);
         const userEntity = await userRepository.findOne({ where: { email: email } });
 
-        if (!userEntity) {
+        if (!userEntity || !await userEntity.comparePassword(password)) {
             return res.status(404).json({ message: '회원을 찾을 수 없거나 비밀번호가 잘못됨' });
         }
 
