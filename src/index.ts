@@ -16,6 +16,7 @@ type JWTUser = {
 import {DataSource} from "typeorm";
 import cookieParser from 'cookie-parser';
 import path from "path";
+import mainRouter from "./routes/main.router";
 
 dotenv.config();
 const app: Express = express();
@@ -37,10 +38,8 @@ AppDataSource
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
-//회원 가입 form 뷰
-app.get('/signup', (req: Request, res: Response) => {
-   res.render('signup');
-});
+app.use('/static', express.static(path.join(__dirname, 'public')));
+app.use('/', mainRouter);
 
 //회원정보 DB 저장 로직
 app.post('/auth/signup', async (req: Request, res: Response) => {
@@ -60,11 +59,6 @@ app.post('/auth/signup', async (req: Request, res: Response) => {
         }
         res.status(500).send({ message: '내부 서버 에러' });
     }
-});
-
-//로그인 화면 form 뷰
-app.get('/signin', (req: Request, res: Response) => {
-   res.render('signin');
 });
 
 //로그인 절차 로직(JWT 발급 및 유효성 검증과 인증 성공 시 로그인 성공)
@@ -129,33 +123,6 @@ app.get('/auth/refresh', (req: Request, res: Response) => {
             user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '30s' });
         res.json({ accessToken });
     });
-});
-
-//로그인 화면 form 뷰
-app.get('/signin', (req: Request, res: Response) => {
-    res.render('signin');
-});
-
-// 인증 미들웨어 로직 (로그인 된 회원이 접근 할 수 있는 엔드포인트에 적용)
-function authMiddleware(req: Request, res: Response, next: NextFunction) {
-    const token: string | undefined = req.cookies.jwt;  // 쿠키에서 토큰을 가져옴
-
-    if (token == null) return res.status(401).json({ message: '토큰이 제공되지 않았습니다.' });
-
-    //토큰 유효성 검증
-    jwt.verify(token, process.env.REFRESH_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user: JWTUser) => {
-        if (err) {
-            console.error(err);
-            return res.sendStatus(403);
-        }
-        req.user = user;
-        next();
-    });
-}
-
-//인증된 회원만 볼 수 있는 뷰
-app.get('/', authMiddleware, async (req: Request, res: Response) => {
-   res.render('index');
 });
 
 app.listen(process.env.PORT, (): void => {
