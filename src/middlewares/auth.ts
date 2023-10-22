@@ -4,24 +4,25 @@ type JWTUser = {
     email: string;
 };
 
-// 인증 미들웨어 로직 (로그인 된 회원이 접근 할 수 있는 엔드포인트에 적용)
 export function checkAuthenticated(req: Request, res: Response, next: NextFunction) {
-    const token: string | undefined = req.cookies.jwt;  // 쿠키에서 토큰을 가져옴
+    const token: string | undefined = req.cookies.access_jwt;
 
-    if (token == null) return res.redirect('/signin'); //토큰이 없으면(인증된 회원이 아니면) 로그인 페이지로 이동
+    if (!token) return res.redirect('/signin');
 
-    //토큰 유효성 검증
-    jwt.verify(token, process.env.REFRESH_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user: JWTUser) => {
-        if (err) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user: JWTUser) => {
+        if (err && err.name === "TokenExpiredError") {
+            // Token 만료 시, 리프레시 토큰을 사용하여 액세스 토큰 재발급
+            return refreshToken(req, res, next);
+        } else if (err) {
             console.error(err);
-            return res.redirect('/signin'); //토큰 검증 실패하면 로그인 페이지로 이동
+            return res.redirect('/signin');
         }
         req.user = user;
         next();
     });
 }
 export function checkNotAuthenticated(req: Request, res: Response, next: NextFunction) {
-    const token: string | undefined = req.cookies.jwt;
+    const token: string | undefined = req.cookies.access_jwt;;
 
     if (token == null) return next();  // 변경: 토큰이 없으면 다음 미들웨어/라우터로 진행
 
@@ -30,6 +31,29 @@ export function checkNotAuthenticated(req: Request, res: Response, next: NextFun
             console.error(err);
             return next();  // 변경: 토큰 검증 실패시 다음 미들웨어/라우터로 진행
         }
-        return res.redirect('/');  // 변경: 토큰이 유효하면 메인 페이지로 리다이렉트
+        return next();  // 유효한 토큰이 있으면 다음 미들웨어/라우터로 진행
+    });
+}
+
+// 리프레시 토큰으로 액세스 토큰 재발급 함수
+let refreshTokens: string[] = []; //나중에 refreshToken 은 DB 에 저장해줘야 됨
+export function refreshToken(req: Request, res: Response, next: NextFunction) {
+    const refreshToken = req.cookies.refresh_jwt;
+
+    if (!refreshTokens.includes(refreshToken)) {
+        return res.sendStatus(403);
+    }
+
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user: JWTUser) => {
+        if (err) {
+            console.error(err);
+            return res.sendStatus(403);
+        }
+
+        const accessToken: string = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '30s' });
+
+        res.cookie('access_jwt', accessToken, { httpOnly: true });  // 새로운 액세스 토큰을 쿠키로 설정
+        req.user = user;
+        next();
     });
 }
