@@ -63,12 +63,11 @@ usersRouter.post('/signin', async (req: Request, res: Response) => {
         refreshTokens.push(refreshToken);
 
         // 토큰 쿠키에 저장
-        res.cookie('jwt', refreshToken, {
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000,
-        });
+        // 토큰 쿠키에 저장
+        res.cookie('access_jwt', accessToken, { httpOnly: true, maxAge: 30 * 1000 });  // 변경
+        res.cookie('refresh_jwt', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });  // 변경
 
-        // 인증된 사용자 정보 반환
+        // 인증된 사용자 정보와 엑세스 토큰을 반환
         res.json({ accessToken, userEntity });
 
         console.log('로그인 및 토큰 발행 성공');
@@ -78,32 +77,6 @@ usersRouter.post('/signin', async (req: Request, res: Response) => {
         }
         res.status(500).send({ message: '내부 서버 에러' });
     }
-});
-
-//발급된 리프레시 refreshToken 을 활용하여 accessToken 재발급 로직
-usersRouter.get('/refresh', (req: Request, res: Response) => {
-    const cookies = req.cookies;
-    console.log('req.cookies: ', cookies);
-    if (!cookies?.jwt) return res.sendStatus(403);
-
-    const refreshToken = cookies.jwt;
-    //refreshToken 이 refreshTokens 의 [] 에 포함여부 검증
-    if (!refreshTokens.includes(refreshToken)) {
-        return res.sendStatus(403);
-    }
-
-    //token 이 유효한 토큰인지 검증
-    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user) => {
-        if (err) {
-            console.error(err);
-            return res.sendStatus(403);
-        }
-        //accessToken 생성
-        //jwt 를 활용하여 액세스 토큰 발급 (유효기간 30초 설정)
-        const accessToken: string = jwt.sign(
-            user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '30s' });
-        res.json({ accessToken });
-    });
 });
 
 export default usersRouter;
