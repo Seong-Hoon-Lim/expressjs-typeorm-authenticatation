@@ -11,6 +11,9 @@ import jwt, { JsonWebTokenError } from 'jsonwebtoken';
 type JWTUser = {
     email: string;
 };
+import {refreshToken, refreshTokens} from "../middlewares/auth";
+import {RefreshToken} from "../entity/RefreshToken";
+
 const usersRouter = express.Router();
 
 AppDataSource
@@ -42,8 +45,7 @@ usersRouter.post('/signup', async (req: Request, res: Response) => {
     }
 });
 
-//로그인 절차 로직(JWT 발급 및 유효성 검증과 인증 성공 시 로그인 성공)
-let refreshTokens: string[] = []; //나중에 refreshToken 은 DB 에 저장해줘야 됨
+// 로그인 절차 로직(JWT 발급 및 유효성 검증과 인증 성공 시 로그인 성공)
 usersRouter.post('/signin', async (req: Request, res: Response) => {
     const { email, password } = req.body;
     try {
@@ -53,19 +55,20 @@ usersRouter.post('/signin', async (req: Request, res: Response) => {
         if (!userEntity || !await userEntity.comparePassword(password)) {
             return res.status(404).json({ message: '회원을 찾을 수 없거나 비밀번호가 잘못됨' });
         }
-
         const user: JWTUser = { email: email };
 
         // JWT 토큰 발행
         const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '30s' });
         const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1d' });
 
-        refreshTokens.push(refreshToken);
+        const refreshTokenEntity = new RefreshToken();
+        refreshTokenEntity.token = refreshToken;
+        refreshTokenEntity.user = userEntity;
+        await AppDataSource.getRepository(RefreshToken).save(refreshTokenEntity);
 
         // 토큰 쿠키에 저장
-        // 토큰 쿠키에 저장
-        res.cookie('access_jwt', accessToken, { httpOnly: true, maxAge: 30 * 1000 });  // 변경
-        res.cookie('refresh_jwt', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });  // 변경
+        res.cookie('access_jwt', accessToken, { httpOnly: true, maxAge: 30 * 1000 });
+        res.cookie('refresh_jwt', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
 
         // 인증된 사용자 정보와 엑세스 토큰을 반환
         res.json({ accessToken, userEntity });
