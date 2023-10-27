@@ -1,5 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import jwt, { JsonWebTokenError } from 'jsonwebtoken';
+import {AppDataSource} from "../data-source";
+import {RefreshToken} from "../entity/RefreshToken";
 type JWTUser = {
     email: string;
 };
@@ -36,24 +38,32 @@ export function checkNotAuthenticated(req: Request, res: Response, next: NextFun
 }
 
 // 리프레시 토큰으로 액세스 토큰 재발급 함수
-let refreshTokens: string[] = []; //나중에 refreshToken 은 DB 에 저장해줘야 됨
+export let refreshTokens: string[] = []; //나중에 refreshToken 은 DB 에 저장해줘야 됨
 export function refreshToken(req: Request, res: Response, next: NextFunction) {
     const refreshToken = req.cookies.refresh_jwt;
 
-    if (!refreshTokens.includes(refreshToken)) {
-        return res.sendStatus(403);
-    }
+    AppDataSource.getRepository(RefreshToken)
+        .findOne({where: {token: refreshToken}})
+        .then(refreshTokenEntity => {
+            if (!refreshTokenEntity) {
+                return res.sendStatus(403);
+            }
 
-    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user: JWTUser) => {
-        if (err) {
+            jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET ?? '', (err: JsonWebTokenError | null, user: JWTUser) => {
+                if (err) {
+                    console.error(err);
+                    return res.sendStatus(403);
+                }
+
+                const accessToken: string = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '30s'});
+
+                res.cookie('access_jwt', accessToken, {httpOnly: true});
+                req.user = user;
+                next();
+            });
+        })
+        .catch(err => {
             console.error(err);
             return res.sendStatus(403);
-        }
-
-        const accessToken: string = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '30s' });
-
-        res.cookie('access_jwt', accessToken, { httpOnly: true });  // 새로운 액세스 토큰을 쿠키로 설정
-        req.user = user;
-        next();
-    });
+        });
 }
